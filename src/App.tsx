@@ -6,29 +6,13 @@ import MainLayout from './layouts/MainLayout';
 const HomeFeed = lazy(() => import('./modules/community/HomeFeed'));
 const ServicesModule = lazy(() => import('./components/ServicesModule'));
 const MarketplaceModule = lazy(() => import('./modules/marketplace/MarketplaceModule'));
+const IslamicModule = lazy(() => import('./modules/islamic/IslamicModule'));
+const MedicalModule = lazy(() => import('./modules/medical/MedicalModule'));
+const KafrawyGoModule = lazy(() => import('./modules/transport/KafrawyGoModule'));
+const CommunityModule = lazy(() => import('./modules/community/CommunityModule'));
+const JobsModule = lazy(() => import('./modules/jobs/JobsModule'));
 
 // Placeholder components for other modules
-const CommunityModule = () => (
-  <div className="p-8 text-center">
-    <h2 className="text-2xl font-black mb-4">المجتمع</h2>
-    <p className="text-[var(--muted)]">قريباً: تواصل مع جيرانك في الكفراوي</p>
-  </div>
-);
-
-const JobsModule = () => (
-  <div className="p-8 text-center">
-    <h2 className="text-2xl font-black mb-4">وظائف الكفراوي</h2>
-    <p className="text-[var(--muted)]">قريباً: ابحث عن وظيفتك القادمة</p>
-  </div>
-);
-
-const MedicalModule = () => (
-  <div className="p-8 text-center">
-    <h2 className="text-2xl font-black mb-4">المركز الطبي</h2>
-    <p className="text-[var(--muted)]">قريباً: احجز موعدك مع أفضل الأطباء</p>
-  </div>
-);
-
 const LoadingScreen = () => (
   <div className="min-h-[60vh] flex items-center justify-center">
     <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -47,7 +31,9 @@ const App: React.FC = () => {
             <Route path="/marketplace/*" element={<MarketplaceModule />} />
           <Route path="/jobs" element={<JobsModule />} />
           <Route path="/services/*" element={<ServicesModule />} />
-          <Route path="/medical" element={<MedicalModule />} />
+          <Route path="/medical/*" element={<MedicalModule />} />
+          <Route path="/islamic/*" element={<IslamicModule />} />
+          <Route path="/go/*" element={<KafrawyGoModule />} />
         </Route>
       </Routes>
     </Suspense>

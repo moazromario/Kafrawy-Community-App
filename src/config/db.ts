@@ -1,7 +1,9 @@
 // src/config/db.ts
 import mongoose from 'mongoose';
 
-const databaseUrl = process.env.DATABASE_URL || "mongodb://localhost:27017/taxi_app";
+const databaseUrl = process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('mongodb') 
+  ? process.env.DATABASE_URL 
+  : "mongodb://localhost:27017/taxi_app";
 
 export const connectDB = async () => {
   try {

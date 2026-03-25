@@ -113,34 +113,44 @@ const ModuleCard = ({ module, onClick }: { module: AppModule; onClick: () => voi
   </motion.div>
 );
 
-const SubModuleGrid = ({ module, onBack }: { module: AppModule; onBack: () => void }) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="px-5 py-6"
-  >
-    <div className="flex items-center gap-3 mb-6">
-      <button onClick={onBack} className="p-2 rounded-xl bg-[var(--card)] border border-[var(--border)]">
-        <ArrowRight className="w-5 h-5" />
-      </button>
-      <h2 className="text-xl font-black">{module.title}</h2>
-    </div>
-    <div className="grid grid-cols-3 gap-6">
-      {module.subModules?.map(sub => (
-        <motion.div 
-          key={sub.id}
-          whileTap={{ scale: 0.95 }}
-          className="flex flex-col items-center gap-2"
+const SubModuleGrid = ({ module, onBack }: { module: AppModule; onBack: () => void }) => {
+  const navigate = useNavigate();
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="px-5 py-6"
+    >
+      <div className="flex items-center gap-3 mb-6">
+        <button onClick={onBack} className="p-2 rounded-xl bg-[var(--card)] border border-[var(--border)]">
+          <ArrowRight className="w-5 h-5" />
+        </button>
+        <h2 className="text-xl font-black">{module.title}</h2>
+        <button 
+          onClick={() => navigate(module.path)}
+          className="mr-auto text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-lg"
         >
-          <div className={`w-14 h-14 rounded-2xl ${sub.color} flex items-center justify-center text-white shadow-md`}>
-            {sub.icon}
-          </div>
-          <span className="text-[10px] font-black text-center">{sub.title}</span>
-        </motion.div>
-      ))}
-    </div>
-  </motion.div>
-);
+          فتح القسم
+        </button>
+      </div>
+      <div className="grid grid-cols-3 gap-6">
+        {module.subModules?.map(sub => (
+          <motion.div 
+            key={sub.id}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate(sub.path)}
+            className="flex flex-col items-center gap-2 cursor-pointer"
+          >
+            <div className={`w-14 h-14 rounded-2xl ${sub.color} flex items-center justify-center text-white shadow-md`}>
+              {sub.icon}
+            </div>
+            <span className="text-[10px] font-black text-center">{sub.title}</span>
+          </motion.div>
+        ))}
+      </div>
+    </motion.div>
+  );
+};
 
 const ProductHorizontal = ({ product }: { product: Product }) => (
   <div className="min-w-[200px] bg-[var(--card)] rounded-[24px] border border-[var(--border)] overflow-hidden soft-shadow neumorph">
