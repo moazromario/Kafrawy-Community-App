@@ -35,7 +35,8 @@ import {
   Zap,
   Paintbrush,
   Truck,
-  Hammer
+  Hammer,
+  GraduationCap
 } from 'lucide-react';
 import { 
   ServiceProvider, 
@@ -44,6 +45,7 @@ import {
   Booking, 
   PromoBanner 
 } from '../types';
+import TeachersScreen from './TeachersScreen';
 
 // --- Mock Data for Services ---
 
@@ -53,6 +55,7 @@ const CATEGORIES: ServiceCategory[] = [
   { id: 'paint', name: 'دهان', icon: <Paintbrush className="w-6 h-6" /> },
   { id: 'general', name: 'صيانة عامة', icon: <Hammer className="w-6 h-6" /> },
   { id: 'move', name: 'نقل أثاث', icon: <Truck className="w-6 h-6" /> },
+  { id: 'teachers', name: 'مدرسين', icon: <GraduationCap className="w-6 h-6" /> },
 ];
 
 const PROVIDERS: ServiceProvider[] = [
@@ -197,7 +200,10 @@ export default function ServicesModule() {
               <motion.button 
                 key={cat.id}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => navigateTo('list')}
+                onClick={() => {
+                  if (cat.id === 'teachers') navigateTo('teachers');
+                  else navigateTo('list');
+                }}
                 className="flex flex-col items-center gap-2 shrink-0"
               >
                 <div className="w-16 h-16 rounded-2xl bg-white border border-[var(--border)] flex items-center justify-center text-primary shadow-sm neumorph">
@@ -1318,6 +1324,7 @@ export default function ServicesModule() {
         <Route path="/gallery" element={<GalleryScreen />} />
         <Route path="/summary" element={<SummaryScreen />} />
         <Route path="/payment_selection" element={<PaymentSelectionScreen />} />
+        <Route path="/teachers/*" element={<TeachersScreen onBack={() => navigate('/services')} />} />
       </Routes>
     </div>
   );

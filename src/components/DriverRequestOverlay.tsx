@@ -28,7 +28,7 @@ interface DriverRequestOverlayProps {
 }
 
 export default function DriverRequestOverlay({ ride, onAccept, onDecline }: DriverRequestOverlayProps) {
-  const [timeLeft, setTimeLeft] = useState(15);
+  const [timeLeft, setTimeLeft] = useState(10);
   const [progress, setProgress] = useState(100);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function DriverRequestOverlay({ ride, onAccept, onDecline }: Driv
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => prev - 1);
-      setProgress((prev) => (timeLeft - 1) / 15 * 100);
+      setProgress((prev) => (timeLeft - 1) / 10 * 100);
     }, 1000);
 
     return () => clearInterval(timer);

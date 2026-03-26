@@ -6,6 +6,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import app from './app';
 import { connectDB } from './config/db';
+import { Trip, Driver } from './models';
 
 async function startServer() {
   // Connect to DB
@@ -32,9 +33,9 @@ async function startServer() {
       console.log(`Socket ${socket.id} joined as ${role}`);
     });
 
-    socket.on('ride_request', (data) => {
+    socket.on('ride_request', async (data) => {
       const requestId = `ride_${Date.now()}`;
-      const requestData = {
+      const requestData: any = {
         id: requestId,
         riderId: socket.id,
         pickup: data.pickup,
@@ -43,20 +44,50 @@ async function startServer() {
         timestamp: Date.now()
       };
 
+      // Save to DB (Trip History)
+      try {
+        const newTrip = new Trip({
+          rider_id: socket.id,
+          pickup: data.pickup,
+          destination: data.destination,
+          status: 'searching'
+        });
+        await newTrip.save();
+        requestData.dbId = newTrip._id;
+      } catch (err) {
+        console.error('Error saving trip to DB:', err);
+      }
+
       activeRequests.set(requestId, requestData);
       console.log(`Broadcasting ride request ${requestId} to drivers`);
       io.to('driver').emit('new_ride_available', requestData);
       socket.emit('ride_searching', { requestId });
     });
 
-    socket.on('accept_ride', (data) => {
+    socket.on('accept_ride', async (data) => {
       const { requestId } = data;
       const request = activeRequests.get(requestId);
 
       if (request && request.status === 'searching') {
+        // Simulated Driver Ban Check (Rating < 4.0)
+        // In a real app, we'd fetch the driver from DB using their auth UID
+        const mockDriverRating = 4.9; // Demo rating
+        if (mockDriverRating < 4.0) {
+          socket.emit('driver_banned', { message: 'عذراً، تم حظر حسابك بسبب انخفاض التقييم.' });
+          return;
+        }
+
         request.status = 'accepted';
         request.driverId = socket.id;
         activeRequests.set(requestId, request);
+
+        // Update DB
+        if (request.dbId) {
+          await Trip.findByIdAndUpdate(request.dbId, {
+            driver_id: socket.id,
+            status: 'accepted'
+          });
+        }
 
         console.log(`Ride ${requestId} accepted by driver ${socket.id}`);
         socket.emit('ride_confirmed', { requestId, role: 'driver' });
@@ -65,7 +96,7 @@ async function startServer() {
           requestId,
           driver: {
             name: 'كابتن أحمد',
-            rating: 4.9,
+            rating: mockDriverRating,
             car: 'هيونداي إلنترا',
             plate: 'أ ب ج 123',
             image: 'https://picsum.photos/seed/driver1/200'
@@ -76,6 +107,33 @@ async function startServer() {
       } else {
         socket.emit('ride_already_taken', { requestId });
       }
+    });
+
+    socket.on('trip_completed', async (data) => {
+      const { requestId, fare } = data;
+      const request = activeRequests.get(requestId);
+      if (request) {
+        request.status = 'completed';
+        if (request.dbId) {
+          await Trip.findByIdAndUpdate(request.dbId, {
+            status: 'completed',
+            price: fare,
+            completed_at: new Date()
+          });
+        }
+        io.to(request.riderId).emit('ride_completed', { fare });
+        activeRequests.delete(requestId);
+      }
+    });
+
+    socket.on('emergency_alert', (data) => {
+      console.log('EMERGENCY ALERT RECEIVED:', data);
+      // In a real app, this would notify an admin dashboard and authorities
+      io.to('admin').emit('emergency_alert', {
+        ...data,
+        timestamp: new Date(),
+        socketId: socket.id
+      });
     });
 
     socket.on('disconnect', () => {
