@@ -1,13 +1,12 @@
-import { UserProfile } from "../../models";
+import { db } from "../../config/firebase-admin";
 
 export const getProfile = async (userId: string) => {
-  return await UserProfile.findOne({ user_id: userId });
+  const doc = await db.collection('userProfiles').doc(userId).get();
+  return doc.exists ? doc.data() : null;
 };
 
 export const updateProfile = async (userId: string, data: any) => {
-  return await UserProfile.findOneAndUpdate(
-    { user_id: userId },
-    { $set: data },
-    { new: true, upsert: true }
-  );
+  await db.collection('userProfiles').doc(userId).set(data, { merge: true });
+  const doc = await db.collection('userProfiles').doc(userId).get();
+  return doc.data();
 };

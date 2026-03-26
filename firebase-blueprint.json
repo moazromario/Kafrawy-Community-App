@@ -1,0 +1,127 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile data",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "avatar_url": { "type": "string" }
+      }
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A comment on a post",
+      "type": "object",
+      "properties": {
+        "post_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "parent_id": { "type": "string" },
+        "content": { "type": "string" },
+        "media_url": { "type": "string" },
+        "likes_count": { "type": "number" },
+        "replies_count": { "type": "number" },
+        "is_edited": { "type": "boolean" },
+        "is_deleted": { "type": "boolean" },
+        "is_pinned": { "type": "boolean" },
+        "is_hidden": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["post_id", "user_id", "content"]
+    },
+    "CommentLike": {
+      "title": "Comment Like",
+      "description": "A like on a comment",
+      "type": "object",
+      "properties": {
+        "comment_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["comment_id", "user_id"]
+    },
+    "CommentReport": {
+      "title": "Comment Report",
+      "description": "A report on a comment",
+      "type": "object",
+      "properties": {
+        "comment_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "reason": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["comment_id", "user_id", "reason"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "A post in the community",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "content": { "type": "string" },
+        "image_url": { "type": "string" },
+        "video_url": { "type": "string" },
+        "likes_count": { "type": "number" },
+        "comments_count": { "type": "number" },
+        "shares_count": { "type": "number" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "content"]
+    },
+    "Story": {
+      "title": "Story",
+      "description": "A story in the community",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "image_url": { "type": "string" },
+        "video_url": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "content": { "type": "string" },
+        "is_read": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "content"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/Comment" },
+      "description": "Comments"
+    },
+    "/comment_likes/{likeId}": {
+      "schema": { "$ref": "#/entities/CommentLike" },
+      "description": "Comment likes"
+    },
+    "/comment_reports/{reportId}": {
+      "schema": { "$ref": "#/entities/CommentReport" },
+      "description": "Comment reports"
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/Post" },
+      "description": "Community posts"
+    },
+    "/stories/{storyId}": {
+      "schema": { "$ref": "#/entities/Story" },
+      "description": "Community stories"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "User notifications"
+    }
+  }
+}

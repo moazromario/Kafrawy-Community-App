@@ -65,6 +65,14 @@ export interface Job {
   postedAt: string;
 }
 
+export interface Project {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  category?: string;
+}
+
 export interface ServiceProvider {
   id: string;
   name: string;
@@ -79,6 +87,9 @@ export interface ServiceProvider {
   bio?: string;
   gallery?: string[];
   services?: ServiceItem[];
+  projects?: Project[];
+  location?: string;
+  phone?: string;
 }
 
 export interface ServiceItem {
@@ -156,4 +167,25 @@ export interface MarketplaceCategory {
 
 export interface CartItem extends Product {
   quantity: number;
+}
+
+export interface Trip {
+  id: string;
+  rider_id: string;
+  driver_id?: string;
+  pickup: string;
+  destination: string;
+  price?: number;
+  status: 'searching' | 'accepted' | 'on_trip' | 'completed' | 'cancelled';
+  created_at: any;
+  completed_at?: any;
+}
+
+export interface Driver {
+  user_id: string;
+  full_name: string;
+  phone: string;
+  rating: number;
+  is_banned: boolean;
+  created_at: any;
 }

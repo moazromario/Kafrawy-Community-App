@@ -36,7 +36,9 @@ import {
   Paintbrush,
   Truck,
   Hammer,
-  GraduationCap
+  GraduationCap,
+  ImagePlus,
+  X
 } from 'lucide-react';
 import { 
   ServiceProvider, 
@@ -251,6 +253,31 @@ export default function ServicesModule() {
           </div>
         </div>
 
+        {/* Join as Sanayia Banner */}
+        <div className="mt-8 mb-4">
+          <motion.div 
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigateTo('onboarding')}
+            className="bg-primary rounded-[32px] p-6 text-white relative overflow-hidden shadow-xl"
+          >
+            <div className="relative z-10">
+              <h3 className="text-xl font-black mb-2">انضم كصنايعي محترف</h3>
+              <p className="text-xs opacity-90 font-bold mb-4 leading-relaxed max-w-[200px]">
+                سجل الآن وابدأ في استقبال طلبات العملاء وزيادة دخلك مع كفراوي
+              </p>
+              <button className="bg-white text-primary px-6 py-2.5 rounded-xl font-black text-sm shadow-lg">
+                سجل الآن
+              </button>
+            </div>
+            <div className="absolute -left-4 -bottom-4 opacity-20 transform -rotate-12">
+              <Wrench className="w-32 h-32" />
+            </div>
+            <div className="absolute -right-4 -top-4 opacity-10 transform rotate-12">
+              <Hammer className="w-24 h-24" />
+            </div>
+          </motion.div>
+        </div>
+
         {/* Offers Banner */}
         <div className="mt-8">
           <div onClick={() => navigateTo('offers')} className="relative h-40 rounded-[32px] overflow-hidden shadow-xl cursor-pointer group">
@@ -396,13 +423,13 @@ export default function ServicesModule() {
 
         <div className="flex-1 bg-[var(--background)] -mt-6 rounded-t-[40px] relative z-10 overflow-hidden flex flex-col">
           <div className="flex border-b border-[var(--border)] px-6 pt-4">
-            {['services', 'reviews', 'info'].map(tab => (
+            {['services', 'projects', 'reviews', 'info'].map(tab => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-4 text-sm font-black transition-all relative ${activeTab === tab ? 'text-primary' : 'text-[var(--muted)]'}`}
+                className={`flex-1 py-4 text-[11px] font-black transition-all relative ${activeTab === tab ? 'text-primary' : 'text-[var(--muted)]'}`}
               >
-                {tab === 'services' ? 'الخدمات' : tab === 'reviews' ? 'التقييمات' : 'معلومات'}
+                {tab === 'services' ? 'الخدمات' : tab === 'projects' ? 'الأعمال' : tab === 'reviews' ? 'التقييمات' : 'معلومات'}
                 {activeTab === tab && <motion.div layoutId="tab" className="absolute bottom-0 inset-x-0 h-1 bg-primary rounded-t-full" />}
               </button>
             ))}
@@ -426,6 +453,34 @@ export default function ServicesModule() {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {activeTab === 'projects' && (
+              <div className="grid grid-cols-2 gap-4">
+                {selectedProvider.projects?.map(project => (
+                  <motion.div 
+                    key={project.id}
+                    whileHover={{ scale: 1.02 }}
+                    className="bg-white rounded-[24px] border border-[var(--border)] overflow-hidden soft-shadow"
+                  >
+                    <div className="aspect-video">
+                      <img src={project.image} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="p-3">
+                      <h4 className="font-black text-[11px] mb-1">{project.title}</h4>
+                      <p className="text-[9px] text-[var(--muted)] font-bold line-clamp-2">{project.description}</p>
+                    </div>
+                  </motion.div>
+                ))}
+                {(!selectedProvider.projects || selectedProvider.projects.length === 0) && (
+                  <div className="col-span-2 py-12 text-center">
+                    <div className="w-16 h-16 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Briefcase className="w-8 h-8 text-primary/40" />
+                    </div>
+                    <p className="text-sm font-black text-[var(--muted)]">لا توجد مشاريع سابقة معروضة</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1218,6 +1273,243 @@ export default function ServicesModule() {
     </div>
   );
 
+  // 15. Sanayia Onboarding Screen
+  const OnboardingScreen = () => {
+    const [step, setStep] = useState(1);
+    const [formData, setFormData] = useState({
+      name: '',
+      category: '',
+      experience: '',
+      phone: '',
+      location: '',
+      bio: '',
+      image: '',
+      projects: [] as any[]
+    });
+
+    const nextStep = () => setStep(s => s + 1);
+    const prevStep = () => setStep(s => s - 1);
+
+    return (
+      <div className="flex flex-col h-full bg-[var(--background)]">
+        <header className="sticky top-0 z-50 glass border-b border-[var(--border)] px-4 py-3 flex items-center gap-3">
+          <button onClick={() => step === 1 ? navigateTo('home') : prevStep()} className="p-2 rounded-xl bg-[var(--background)]">
+            <ArrowRight className="w-5 h-5" />
+          </button>
+          <h1 className="text-xl font-black">انضم كصنايعي</h1>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              {[1, 2, 3, 4].map(i => (
+                <div 
+                  key={i} 
+                  className={`h-2 flex-1 rounded-full mx-1 transition-all ${step >= i ? 'bg-primary' : 'bg-[var(--border)]'}`} 
+                />
+              ))}
+            </div>
+            <p className="text-xs font-black text-[var(--muted)] text-center">الخطوة {step} من 4</p>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {step === 1 && (
+              <motion.div 
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="text-center mb-8">
+                  <div className="w-24 h-24 bg-primary/5 rounded-[32px] flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-primary/20">
+                    <User className="w-10 h-10 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-black">المعلومات الشخصية</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black px-2">الاسم بالكامل</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-white border border-[var(--border)] rounded-2xl p-4 font-bold text-sm"
+                      placeholder="أدخل اسمك"
+                      value={formData.name}
+                      onChange={e => setFormData({...formData, name: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black px-2">التخصص</label>
+                    <select 
+                      className="w-full bg-white border border-[var(--border)] rounded-2xl p-4 font-bold text-sm appearance-none"
+                      value={formData.category}
+                      onChange={e => setFormData({...formData, category: e.target.value})}
+                    >
+                      <option value="">اختر تخصصك</option>
+                      {CATEGORIES.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black px-2">رقم الهاتف</label>
+                    <input 
+                      type="tel" 
+                      className="w-full bg-white border border-[var(--border)] rounded-2xl p-4 font-bold text-sm"
+                      placeholder="01xxxxxxxxx"
+                      value={formData.phone}
+                      onChange={e => setFormData({...formData, phone: e.target.value})}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {step === 2 && (
+              <motion.div 
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="text-center mb-8">
+                  <div className="w-24 h-24 bg-primary/5 rounded-[32px] flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-primary/20">
+                    <Briefcase className="w-10 h-10 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-black">الخبرة المهنية</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black px-2">سنوات الخبرة</label>
+                    <input 
+                      type="number" 
+                      className="w-full bg-white border border-[var(--border)] rounded-2xl p-4 font-bold text-sm"
+                      placeholder="مثال: 5"
+                      value={formData.experience}
+                      onChange={e => setFormData({...formData, experience: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black px-2">العنوان / المنطقة</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-white border border-[var(--border)] rounded-2xl p-4 font-bold text-sm"
+                      placeholder="مثال: مدينة كفر الشيخ"
+                      value={formData.location}
+                      onChange={e => setFormData({...formData, location: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black px-2">نبذة عن عملك</label>
+                    <textarea 
+                      className="w-full bg-white border border-[var(--border)] rounded-2xl p-4 font-bold text-sm h-32 resize-none"
+                      placeholder="تحدث عن خبراتك والخدمات التي تقدمها..."
+                      value={formData.bio}
+                      onChange={e => setFormData({...formData, bio: e.target.value})}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {step === 3 && (
+              <motion.div 
+                key="step3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="text-center mb-8">
+                  <div className="w-24 h-24 bg-primary/5 rounded-[32px] flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-primary/20">
+                    <ImagePlus className="w-10 h-10 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-black">معرض الأعمال</h3>
+                  <p className="text-xs text-[var(--muted)] font-bold mt-2">أضف صوراً لمشاريعك السابقة</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {formData.projects.map((p, i) => (
+                    <div key={i} className="aspect-video rounded-2xl overflow-hidden relative group">
+                      <img src={p.image} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button className="p-2 bg-red-500 text-white rounded-lg">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button 
+                    onClick={() => {
+                      const newProject = {
+                        id: Math.random().toString(),
+                        title: 'مشروع جديد',
+                        description: 'وصف المشروع المنجز',
+                        image: `https://picsum.photos/seed/${Math.random()}/800/600`
+                      };
+                      setFormData({...formData, projects: [...formData.projects, newProject]});
+                    }}
+                    className="aspect-video rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors"
+                  >
+                    <Plus className="w-6 h-6 text-primary" />
+                    <span className="text-[10px] font-black">إضافة مشروع</span>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {step === 4 && (
+              <motion.div 
+                key="step4"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-8 text-center"
+              >
+                <div className="w-32 h-32 bg-emerald-50 rounded-full flex items-center justify-center mx-auto border-4 border-emerald-100">
+                  <CheckCircle2 className="w-16 h-16 text-emerald-500" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black mb-2">تم إرسال طلبك!</h3>
+                  <p className="text-sm text-[var(--muted)] font-bold leading-relaxed px-6">
+                    شكراً لانضمامك إلينا. سيقوم فريقنا بمراجعة بياناتك وتفعيل حسابك خلال 24 ساعة.
+                  </p>
+                </div>
+                <div className="bg-white p-6 rounded-[32px] border border-[var(--border)] text-right space-y-4">
+                  <h4 className="font-black text-sm border-b pb-2">ملخص البيانات</h4>
+                  <div className="space-y-2 text-xs font-bold">
+                    <div className="flex justify-between"><span>الاسم:</span><span className="text-primary">{formData.name}</span></div>
+                    <div className="flex justify-between"><span>التخصص:</span><span className="text-primary">{formData.category}</span></div>
+                    <div className="flex justify-between"><span>الخبرة:</span><span className="text-primary">{formData.experience} سنوات</span></div>
+                    <div className="flex justify-between"><span>المشاريع:</span><span className="text-primary">{formData.projects.length} مشاريع</span></div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </main>
+
+        <div className="p-6">
+          {step < 4 ? (
+            <button 
+              onClick={nextStep}
+              disabled={step === 1 && !formData.name}
+              className="w-full bg-primary text-white font-black py-4 rounded-[24px] shadow-xl disabled:opacity-50"
+            >
+              {step === 3 ? 'إرسال الطلب' : 'المتابعة'}
+            </button>
+          ) : (
+            <button 
+              onClick={() => navigateTo('home')}
+              className="w-full bg-primary text-white font-black py-4 rounded-[24px] shadow-xl"
+            >
+              العودة للرئيسية
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // 14. Service Summary Screen
   const SummaryScreen = () => (
     <div className="flex flex-col h-full bg-[var(--background)]">
@@ -1323,6 +1615,7 @@ export default function ServicesModule() {
         <Route path="/details" element={<ServiceDetailsScreen />} />
         <Route path="/gallery" element={<GalleryScreen />} />
         <Route path="/summary" element={<SummaryScreen />} />
+        <Route path="/onboarding" element={<OnboardingScreen />} />
         <Route path="/payment_selection" element={<PaymentSelectionScreen />} />
         <Route path="/teachers/*" element={<TeachersScreen onBack={() => navigate('/services')} />} />
       </Routes>

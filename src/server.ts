@@ -5,13 +5,9 @@ import { Server } from 'socket.io';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import app from './app';
-import { connectDB } from './config/db';
-import { Trip, Driver } from './models';
+import { db } from './config/firebase-admin';
 
 async function startServer() {
-  // Connect to DB
-  await connectDB();
-
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
     cors: {
@@ -46,14 +42,15 @@ async function startServer() {
 
       // Save to DB (Trip History)
       try {
-        const newTrip = new Trip({
+        const tripData = {
           rider_id: socket.id,
           pickup: data.pickup,
           destination: data.destination,
-          status: 'searching'
-        });
-        await newTrip.save();
-        requestData.dbId = newTrip._id;
+          status: 'searching',
+          created_at: new Date()
+        };
+        const tripRef = await db.collection('trips').add(tripData);
+        requestData.dbId = tripRef.id;
       } catch (err) {
         console.error('Error saving trip to DB:', err);
       }
@@ -83,7 +80,7 @@ async function startServer() {
 
         // Update DB
         if (request.dbId) {
-          await Trip.findByIdAndUpdate(request.dbId, {
+          await db.collection('trips').doc(request.dbId).update({
             driver_id: socket.id,
             status: 'accepted'
           });
@@ -115,7 +112,7 @@ async function startServer() {
       if (request) {
         request.status = 'completed';
         if (request.dbId) {
-          await Trip.findByIdAndUpdate(request.dbId, {
+          await db.collection('trips').doc(request.dbId).update({
             status: 'completed',
             price: fare,
             completed_at: new Date()

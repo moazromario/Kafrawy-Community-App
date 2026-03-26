@@ -175,11 +175,19 @@ const ProductHorizontal = ({ product }: { product: Product }) => (
   </div>
 );
 
+import CommentsSection from '../../components/CommentsSystem';
+
 // --- Main Feed ---
 
 const HomeFeed: React.FC = () => {
   const navigate = useNavigate();
   const [selectedModule, setSelectedModule] = useState<AppModule | null>(null);
+
+  const currentUser = {
+    id: 'user1',
+    name: 'محمد أحمد',
+    avatar_url: 'https://ui-avatars.com/api/?name=Mohamed+Ahmed&background=0D8ABC&color=fff'
+  };
 
   return (
     <div className="pb-24">
@@ -276,6 +284,10 @@ const HomeFeed: React.FC = () => {
             </div>
           ))}
         </div>
+      </div>
+      {/* Comments Section (Demo) */}
+      <div className="px-5 py-8">
+        <CommentsSection postId="demo-post-123" currentUser={currentUser} />
       </div>
     </div>
   );

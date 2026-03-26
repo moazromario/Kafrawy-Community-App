@@ -1,7 +1,11 @@
-import { WalletTransaction } from "../../models";
+import { db } from "../../config/firebase-admin";
 
 export const getBalance = async (userId: string) => {
-  const txs = await WalletTransaction.find({ user_id: userId });
+  const snapshot = await db.collection('walletTransactions')
+    .where('user_id', '==', userId)
+    .get();
+  
+  const txs = snapshot.docs.map(doc => doc.data());
 
   return txs.reduce((acc, tx) => {
     return tx.type === "credit"

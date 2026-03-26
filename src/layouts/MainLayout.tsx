@@ -9,7 +9,8 @@ import {
   Bell, 
   Bot,
   Sparkles,
-  Flame
+  Flame,
+  Store
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import KafrawyAI from '../components/KafrawyAI';
@@ -23,6 +24,7 @@ const MainLayout: React.FC = () => {
     { icon: <Home className="w-6 h-6" />, label: 'الرئيسية', path: '/' },
     { icon: <Users className="w-6 h-6" />, label: 'المجتمع', path: '/community' },
     { icon: <MessageCircle className="w-6 h-6" />, label: 'الرسائل', path: '/messages' },
+    { icon: <Store className="w-6 h-6" />, label: 'المتاجر', path: '/marketplace' },
     { icon: <User className="w-6 h-6" />, label: 'حسابي', path: '/profile' },
   ];
 

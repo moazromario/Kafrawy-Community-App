@@ -36,7 +36,8 @@ import {
   Bell,
   Tag,
   Droplets,
-  History as HistoryIcon
+  History as HistoryIcon,
+  ImagePlus
 } from 'lucide-react';
 
 interface Teacher {
@@ -61,6 +62,12 @@ interface Teacher {
     courses: number;
   };
   gallery?: string[];
+  projects?: {
+    id: string;
+    title: string;
+    description: string;
+    image: string;
+  }[];
   reviewsList?: {
     id: string;
     name: string;
@@ -122,6 +129,10 @@ const MOCK_TEACHERS: Teacher[] = [
       'https://picsum.photos/seed/edu2/400/300',
       'https://picsum.photos/seed/edu3/400/300',
       'https://picsum.photos/seed/edu4/400/300',
+    ],
+    projects: [
+      { id: 'p1', title: 'مراجعة ليلة الامتحان 2025', description: 'ملخص شامل لجميع قوانين التفاضل والتكامل مع حل نماذج الوزارة.', image: 'https://picsum.photos/seed/proj1/400/300' },
+      { id: 'p2', title: 'سلسلة التفوق في الجبر', description: 'شرح مبسط لدروس المصفوفات والمحددات لطلاب الصف الثالث الثانوي.', image: 'https://picsum.photos/seed/proj2/400/300' },
     ],
     reviewsList: [
       { id: 'r1', name: 'أحمد علي', rating: 5, comment: 'مدرس ممتاز جداً وشرحه مبسط وممتع.', date: 'منذ يومين', avatar: 'https://picsum.photos/seed/u1/100/100' },
@@ -518,6 +529,7 @@ export default function TeachersScreen({ onBack }: { onBack: () => void }) {
   );
 
   const ProfileView = () => {
+    const [activeTab, setActiveTab] = useState('about');
     if (!selectedTeacher) return null;
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-32">
@@ -565,136 +577,206 @@ export default function TeachersScreen({ onBack }: { onBack: () => void }) {
             </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-50 dark:border-slate-800 text-center space-y-1">
-              <div className="text-lg font-black text-slate-900 dark:text-white">{selectedTeacher.stats.students}+</div>
-              <div className="text-[8px] text-slate-400 font-black uppercase tracking-widest">طالب</div>
-            </div>
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-50 dark:border-slate-800 text-center space-y-1">
-              <div className="text-lg font-black text-slate-900 dark:text-white">{selectedTeacher.stats.hours}</div>
-              <div className="text-[8px] text-slate-400 font-black uppercase tracking-widest">ساعة تدريس</div>
-            </div>
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-50 dark:border-slate-800 text-center space-y-1">
-              <div className="text-lg font-black text-slate-900 dark:text-white">{selectedTeacher.stats.courses}</div>
-              <div className="text-[8px] text-slate-400 font-black uppercase tracking-widest">دورة تدريبية</div>
-            </div>
+          {/* Tabs */}
+          <div className="flex gap-4 border-b border-slate-100 dark:border-slate-800">
+            {['about', 'projects', 'reviews'].map(tab => (
+              <button 
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`pb-4 text-sm font-black transition-all relative ${activeTab === tab ? 'text-royal-600' : 'text-slate-400'}`}
+              >
+                {tab === 'about' ? 'عن المدرس' : tab === 'projects' ? 'الأعمال' : 'التقييمات'}
+                {activeTab === tab && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-royal-600 rounded-full" />}
+              </button>
+            ))}
           </div>
 
-          {/* Video Introduction */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-black text-slate-900 dark:text-white">فيديو تعريفي</h2>
-            <div className="relative aspect-video rounded-[40px] overflow-hidden group cursor-pointer shadow-2xl shadow-royal-900/20">
-              <img src="https://picsum.photos/seed/video/800/450" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <div className="w-16 h-16 bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/30 group-hover:scale-110 transition-transform">
-                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-royal-600 shadow-xl">
-                    <Video className="w-6 h-6 fill-current" />
+          <AnimatePresence mode="wait">
+            {activeTab === 'about' && (
+              <motion.div 
+                key="about"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-8"
+              >
+                {/* Stats Cards */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-50 dark:border-slate-800 text-center space-y-1">
+                    <div className="text-lg font-black text-slate-900 dark:text-white">{selectedTeacher.stats.students}+</div>
+                    <div className="text-[8px] text-slate-400 font-black uppercase tracking-widest">طالب</div>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-50 dark:border-slate-800 text-center space-y-1">
+                    <div className="text-lg font-black text-slate-900 dark:text-white">{selectedTeacher.stats.hours}</div>
+                    <div className="text-[8px] text-slate-400 font-black uppercase tracking-widest">ساعة تدريس</div>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-50 dark:border-slate-800 text-center space-y-1">
+                    <div className="text-lg font-black text-slate-900 dark:text-white">{selectedTeacher.stats.courses}</div>
+                    <div className="text-[8px] text-slate-400 font-black uppercase tracking-widest">دورة تدريبية</div>
                   </div>
                 </div>
-              </div>
-              <div className="absolute bottom-6 right-6 left-6 text-white">
-                <p className="text-xs font-black opacity-80">شاهد كيف أدرس</p>
-                <h4 className="text-sm font-black">مقدمة في منهج الرياضيات</h4>
-              </div>
-            </div>
-          </div>
 
-          {/* About Section */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-black text-slate-900 dark:text-white">عن المدرس</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
-              {selectedTeacher.about}
-            </p>
-          </div>
-
-          {/* Education */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-black text-slate-900 dark:text-white">التعليم والخبرة</h2>
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <div className="w-10 h-10 bg-royal-50 dark:bg-royal-900/20 rounded-xl flex items-center justify-center text-royal-600 shrink-0">
-                  <GraduationCap className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-slate-900 dark:text-white">المؤهل الأكاديمي</h4>
-                  <p className="text-xs text-slate-400 font-bold">{selectedTeacher.education}</p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="w-10 h-10 bg-royal-50 dark:bg-royal-900/20 rounded-xl flex items-center justify-center text-royal-600 shrink-0">
-                  <Award className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-slate-900 dark:text-white">الخبرة المهنية</h4>
-                  <p className="text-xs text-slate-400 font-bold">{selectedTeacher.experience}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Location */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-black text-slate-900 dark:text-white">الموقع</h2>
-            <div className="bg-slate-100 dark:bg-slate-800 h-40 rounded-[32px] relative overflow-hidden flex items-center justify-center">
-              <MapPin className="w-8 h-8 text-slate-300" />
-              <div className="absolute bottom-4 right-4 left-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-3 rounded-2xl flex items-center gap-3 border border-white/20">
-                <div className="w-10 h-10 bg-royal-50 dark:bg-royal-900/20 rounded-xl flex items-center justify-center text-royal-600 shrink-0">
-                  <Navigation className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-[10px] font-black text-slate-900 dark:text-white">{selectedTeacher.location}</h4>
-                  <p className="text-[8px] text-slate-400 font-bold">يبعد 2.5 كم عنك</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Gallery */}
-          {selectedTeacher.gallery && selectedTeacher.gallery.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-black text-slate-900 dark:text-white">معرض الصور</h2>
-              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-                {selectedTeacher.gallery.map((img, i) => (
-                  <img 
-                    key={i} 
-                    src={img} 
-                    className="w-48 h-32 rounded-[32px] object-cover shadow-lg" 
-                    referrerPolicy="no-referrer"
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Reviews List */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black text-slate-900 dark:text-white">آراء الطلاب</h2>
-              <span className="text-royal-600 text-xs font-black">عرض الكل</span>
-            </div>
-            <div className="space-y-4">
-              {selectedTeacher.reviewsList?.map(review => (
-                <div key={review.id} className="bg-white dark:bg-slate-900 p-5 rounded-[32px] border border-slate-50 dark:border-slate-800 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <img src={review.avatar} className="w-10 h-10 rounded-xl object-cover" />
-                      <div>
-                        <h4 className="text-sm font-black text-slate-900 dark:text-white">{review.name}</h4>
-                        <div className="flex items-center gap-1 text-amber-500">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className={`w-2.5 h-2.5 ${i < review.rating ? 'fill-current' : 'text-slate-200'}`} />
-                          ))}
+                {/* Video Introduction */}
+                <div className="space-y-4">
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white">فيديو تعريفي</h2>
+                  <div className="relative aspect-video rounded-[40px] overflow-hidden group cursor-pointer shadow-2xl shadow-royal-900/20">
+                    <img src="https://picsum.photos/seed/video/800/450" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <div className="w-16 h-16 bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/30 group-hover:scale-110 transition-transform">
+                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-royal-600 shadow-xl">
+                          <Video className="w-6 h-6 fill-current" />
                         </div>
                       </div>
                     </div>
-                    <span className="text-[10px] text-slate-400 font-bold">{review.date}</span>
+                    <div className="absolute bottom-6 right-6 left-6 text-white">
+                      <p className="text-xs font-black opacity-80">شاهد كيف أدرس</p>
+                      <h4 className="text-sm font-black">مقدمة في منهج الرياضيات</h4>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">{review.comment}</p>
                 </div>
-              ))}
-            </div>
-          </div>
+
+                {/* About Section */}
+                <div className="space-y-4">
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white">عن المدرس</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                    {selectedTeacher.about}
+                  </p>
+                </div>
+
+                {/* Education */}
+                <div className="space-y-4">
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white">التعليم والخبرة</h2>
+                  <div className="space-y-4">
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-royal-50 dark:bg-royal-900/20 rounded-xl flex items-center justify-center text-royal-600 shrink-0">
+                        <GraduationCap className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white">المؤهل الأكاديمي</h4>
+                        <p className="text-xs text-slate-400 font-bold">{selectedTeacher.education}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-royal-50 dark:bg-royal-900/20 rounded-xl flex items-center justify-center text-royal-600 shrink-0">
+                        <Award className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white">الخبرة المهنية</h4>
+                        <p className="text-xs text-slate-400 font-bold">{selectedTeacher.experience}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="space-y-4">
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white">الموقع</h2>
+                  <div className="bg-slate-100 dark:bg-slate-800 h-40 rounded-[32px] relative overflow-hidden flex items-center justify-center">
+                    <MapPin className="w-8 h-8 text-slate-300" />
+                    <div className="absolute bottom-4 right-4 left-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-3 rounded-2xl flex items-center gap-3 border border-white/20">
+                      <div className="w-10 h-10 bg-royal-50 dark:bg-royal-900/20 rounded-xl flex items-center justify-center text-royal-600 shrink-0">
+                        <Navigation className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-[10px] font-black text-slate-900 dark:text-white">{selectedTeacher.location}</h4>
+                        <p className="text-[8px] text-slate-400 font-bold">يبعد 2.5 كم عنك</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'projects' && (
+              <motion.div 
+                key="projects"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-6"
+              >
+                <div className="grid grid-cols-1 gap-6">
+                  {selectedTeacher.projects?.map(project => (
+                    <div key={project.id} className="bg-white dark:bg-slate-900 rounded-[40px] overflow-hidden border border-slate-50 dark:border-slate-800 shadow-sm">
+                      <div className="aspect-video relative">
+                        <img src={project.image} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-4 right-6 text-white">
+                          <h3 className="text-lg font-black">{project.title}</h3>
+                        </div>
+                      </div>
+                      <div className="p-6">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">{project.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {(!selectedTeacher.projects || selectedTeacher.projects.length === 0) && (
+                    <div className="text-center py-20 space-y-4">
+                      <div className="w-20 h-20 bg-slate-100 dark:bg-slate-900 rounded-full flex items-center justify-center text-slate-300 mx-auto">
+                        <BookOpen className="w-10 h-10" />
+                      </div>
+                      <p className="text-sm text-slate-400 font-bold">لا توجد أعمال معروضة حالياً</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Gallery */}
+                {selectedTeacher.gallery && selectedTeacher.gallery.length > 0 && (
+                  <div className="space-y-4 pt-4">
+                    <h2 className="text-lg font-black text-slate-900 dark:text-white">معرض الصور</h2>
+                    <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                      {selectedTeacher.gallery.map((img, i) => (
+                        <img 
+                          key={i} 
+                          src={img} 
+                          className="w-48 h-32 rounded-[32px] object-cover shadow-lg" 
+                          referrerPolicy="no-referrer"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === 'reviews' && (
+              <motion.div 
+                key="reviews"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-6"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white">آراء الطلاب</h2>
+                  <div className="flex items-center gap-1 text-amber-500 font-black">
+                    <Star className="w-4 h-4 fill-current" /> {selectedTeacher.rating}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {selectedTeacher.reviewsList?.map(review => (
+                    <div key={review.id} className="bg-white dark:bg-slate-900 p-5 rounded-[32px] border border-slate-50 dark:border-slate-800 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <img src={review.avatar} className="w-10 h-10 rounded-xl object-cover" />
+                          <div>
+                            <h4 className="text-sm font-black text-slate-900 dark:text-white">{review.name}</h4>
+                            <div className="flex items-center gap-1 text-amber-500">
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} className={`w-2.5 h-2.5 ${i < review.rating ? 'fill-current' : 'text-slate-200'}`} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-bold">{review.date}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">{review.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Action Bar */}
@@ -886,6 +968,7 @@ export default function TeachersScreen({ onBack }: { onBack: () => void }) {
       { id: 1, title: 'المعلومات الشخصية' },
       { id: 2, title: 'التخصص والخبرة' },
       { id: 3, title: 'التوثيق والشهادات' },
+      { id: 4, title: 'الأعمال والمشاريع' },
     ];
 
     return (
@@ -969,6 +1052,50 @@ export default function TeachersScreen({ onBack }: { onBack: () => void }) {
                 </button>
               </motion.div>
             )}
+
+            {onboardingStep === 4 && (
+              <motion.div 
+                key="step4"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="bg-royal-50 dark:bg-royal-900/10 border border-royal-100 dark:border-royal-900/30 p-4 rounded-2xl flex gap-3">
+                  <BookOpen className="w-5 h-5 text-royal-600 shrink-0" />
+                  <p className="text-xs text-royal-700 dark:text-royal-400 font-bold leading-relaxed">أضف نماذج من أعمالك، مذكراتك، أو فيديوهات شرح لتعزيز بروفايلك.</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <button className="aspect-square rounded-[32px] border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center gap-2 text-slate-400 hover:bg-royal-50 dark:hover:bg-royal-900/10 transition-colors">
+                    <ImagePlus className="w-8 h-8 text-royal-600" />
+                    <span className="text-[10px] font-black">إضافة عمل</span>
+                  </button>
+                  <div className="aspect-square rounded-[32px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 flex flex-col justify-between shadow-sm">
+                    <div className="w-full h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <img src="https://picsum.photos/seed/p1/200/200" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-slate-900 dark:text-white truncate">مراجعة ليلة الامتحان</p>
+                      <p className="text-[8px] text-slate-400 font-bold">ملف PDF</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-4">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">فيديو تعريفي (اختياري)</h3>
+                  <button className="w-full p-4 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-between group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center justify-center text-red-600">
+                        <Video className="w-5 h-5" />
+                      </div>
+                      <span className="text-xs font-black text-slate-600 dark:text-slate-400">رابط فيديو يوتيوب</span>
+                    </div>
+                    <Plus className="w-4 h-4 text-slate-300 group-hover:text-royal-600 transition-colors" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
 
           <div className="flex gap-4 pt-8">
@@ -977,7 +1104,7 @@ export default function TeachersScreen({ onBack }: { onBack: () => void }) {
             )}
             <button 
               onClick={() => {
-                if (onboardingStep < 3) setOnboardingStep(onboardingStep + 1);
+                if (onboardingStep < 4) setOnboardingStep(onboardingStep + 1);
                 else {
                   setUserRole('teacher');
                   goToDashboard();
@@ -985,7 +1112,7 @@ export default function TeachersScreen({ onBack }: { onBack: () => void }) {
               }}
               className="flex-[2] py-4 bg-royal-600 text-white rounded-2xl font-black shadow-xl shadow-royal-600/20"
             >
-              {onboardingStep === 3 ? 'إكمال التسجيل' : 'التالي'}
+              {onboardingStep === 4 ? 'إكمال التسجيل' : 'التالي'}
             </button>
           </div>
         </div>
