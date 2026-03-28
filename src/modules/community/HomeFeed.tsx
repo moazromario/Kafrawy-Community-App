@@ -16,9 +16,13 @@ import {
   Store,
   Tag,
   LayoutGrid,
-  Sparkles
+  Sparkles,
+  Users,
+  MessageCircle,
+  Heart,
+  Share2
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
   STORIES, 
   PROMO_BANNERS, 
@@ -28,8 +32,93 @@ import {
   PRODUCTS
 } from '../../mockData';
 import { AppModule, Product } from '../../types';
+import { supabase } from '../../lib/supabase';
+import { formatDistanceToNow } from 'date-fns';
+import { ar } from 'date-fns/locale';
 
 // --- Components ---
+
+const CommunityPreview = () => {
+  const [posts, setPosts] = useState<any[]>([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(3);
+      
+      if (error) {
+        console.error("Error fetching posts:", error);
+        return;
+      }
+      setPosts(data || []);
+    };
+
+    fetchPosts();
+    const channel = supabase
+      .channel('posts')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, fetchPosts)
+      .subscribe();
+      
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  if (posts.length === 0) return null;
+
+  return (
+    <section className="px-5 py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-[var(--text-main)]">مجتمع كفراوي</h2>
+            <p className="text-xs font-bold text-[var(--muted)]">آخر الأخبار والمناقشات في كفر الدوار</p>
+          </div>
+        </div>
+        <Link to="/community" className="text-sm font-black text-primary flex items-center gap-1">
+          عرض الكل <ChevronLeft className="w-4 h-4" />
+        </Link>
+      </div>
+
+      <div className="space-y-4">
+        {posts.map((post) => (
+          <motion.div 
+            key={post.id}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/community')}
+            className="bg-[var(--background)] rounded-3xl p-4 border border-[var(--border)] soft-shadow"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-slate-100 border border-[var(--border)]" />
+              <div>
+                <div className="text-sm font-black">مستخدم كفراوي</div>
+                <div className="text-[10px] font-bold text-[var(--muted)]">
+                  {post.created_at ? formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ar }) : 'الآن'}
+                </div>
+              </div>
+            </div>
+            <p className="text-sm font-bold text-[var(--text-main)] line-clamp-2 mb-3">{post.content}</p>
+            <div className="flex items-center gap-4 text-[var(--muted)]">
+              <div className="flex items-center gap-1.5">
+                <Heart className="w-4 h-4" />
+                <span className="text-xs font-black">{post.likes_count || 0}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <MessageCircle className="w-4 h-4" />
+                <span className="text-xs font-black">{post.comments_count || 0}</span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+};
 
 const TickerTape = () => {
   return (
@@ -78,6 +167,7 @@ const BannerCarousel = () => {
               src={PROMO_BANNERS[current].image} 
               alt={PROMO_BANNERS[current].title} 
               className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-l from-black/60 to-transparent flex flex-col justify-center px-8 text-white">
               <h3 className="text-xl font-black mb-2">{PROMO_BANNERS[current].title}</h3>
@@ -155,7 +245,12 @@ const SubModuleGrid = ({ module, onBack }: { module: AppModule; onBack: () => vo
 const ProductHorizontal = ({ product }: { product: Product }) => (
   <div className="min-w-[200px] bg-[var(--card)] rounded-[24px] border border-[var(--border)] overflow-hidden soft-shadow neumorph">
     <div className="aspect-square relative">
-      <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+      <img 
+        src={product.image} 
+        alt={product.name} 
+        className="w-full h-full object-cover" 
+        referrerPolicy="no-referrer"
+      />
       {product.isHot && (
         <div className="absolute top-2 right-2 bg-rose-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full">
           HOT
@@ -174,8 +269,6 @@ const ProductHorizontal = ({ product }: { product: Product }) => (
     </div>
   </div>
 );
-
-import CommentsSection from '../../components/CommentsSystem';
 
 // --- Main Feed ---
 
@@ -239,7 +332,12 @@ const HomeFeed: React.FC = () => {
           {[1, 2, 3, 4].map(i => (
             <div key={i} className="min-w-[120px] flex flex-col items-center gap-2">
               <div className="w-20 h-20 rounded-full border-2 border-primary/20 p-1">
-                <img src={`https://picsum.photos/seed/store${i}/100`} alt="" className="w-full h-full rounded-full object-cover" />
+                <img 
+                  src={`https://picsum.photos/seed/store${i}/100`} 
+                  alt="" 
+                  className="w-full h-full rounded-full object-cover" 
+                  referrerPolicy="no-referrer"
+                />
               </div>
               <span className="text-xs font-bold">متجر {i}</span>
             </div>
@@ -263,6 +361,8 @@ const HomeFeed: React.FC = () => {
         </div>
       </div>
 
+      <CommunityPreview />
+
       {/* Ad Banner Placeholder */}
       <div className="px-5 py-8">
         <div className="w-full aspect-[320/50] bg-slate-100 rounded-xl flex items-center justify-center border border-dashed border-slate-300">
@@ -276,7 +376,12 @@ const HomeFeed: React.FC = () => {
         <div className="grid grid-cols-2 gap-4">
           {PRODUCTS.slice(0, 4).map(product => (
             <div key={product.id} className="bg-[var(--card)] rounded-3xl border border-[var(--border)] overflow-hidden soft-shadow">
-              <img src={product.image} alt="" className="w-full aspect-square object-cover" />
+              <img 
+                src={product.image} 
+                alt="" 
+                className="w-full aspect-square object-cover" 
+                referrerPolicy="no-referrer"
+              />
               <div className="p-3">
                 <h4 className="text-xs font-black truncate">{product.name}</h4>
                 <p className="text-primary font-black text-sm mt-1">{product.price} ج.م</p>
@@ -284,10 +389,6 @@ const HomeFeed: React.FC = () => {
             </div>
           ))}
         </div>
-      </div>
-      {/* Comments Section (Demo) */}
-      <div className="px-5 py-8">
-        <CommentsSection postId="demo-post-123" currentUser={currentUser} />
       </div>
     </div>
   );

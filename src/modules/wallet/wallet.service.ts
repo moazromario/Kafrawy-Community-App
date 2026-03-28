@@ -1,13 +1,14 @@
-import { db } from "../../config/firebase-admin";
+import { supabaseAdmin } from "../../lib/supabase-admin";
 
 export const getBalance = async (userId: string) => {
-  const snapshot = await db.collection('walletTransactions')
-    .where('user_id', '==', userId)
-    .get();
+  const { data: txs, error } = await supabaseAdmin
+    .from('walletTransactions')
+    .select('amount, type')
+    .eq('user_id', userId);
   
-  const txs = snapshot.docs.map(doc => doc.data());
+  if (error) throw error;
 
-  return txs.reduce((acc, tx) => {
+  return (txs || []).reduce((acc, tx) => {
     return tx.type === "credit"
       ? acc + (tx.amount || 0)
       : acc - (tx.amount || 0);

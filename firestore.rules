@@ -19,6 +19,12 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == resource.data.user_id;
     }
 
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "cfo.moaz@gmail.com" && request.auth.token.email_verified == true));
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -26,49 +32,82 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if true;
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
     }
 
-    match /userProfiles/{userId} {
+    match /posts/{postId} {
       allow read: if true;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        (isDocOwner() || isAdmin())
+        ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count', 'comments_count', 'shares_count']))
+      );
+      allow delete: if isDocOwner() || isAdmin();
     }
 
-    match /walletTransactions/{txId} {
-      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
-      allow write: if false; // Only backend can write
+    match /likes/{likeId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
     }
 
-    match /notifications/{notifId} {
+    match /follows/{followId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.follower_id == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.follower_id == request.auth.uid;
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (
+        resource.data.sender_id == request.auth.uid || 
+        exists(/databases/$(database)/documents/conversations/$(resource.data.conversation_id)) && 
+        get(/databases/$(database)/documents/conversations/$(resource.data.conversation_id)).data.participants.hasAny([request.auth.uid])
+      );
+      allow create: if isAuthenticated() && 
+        request.resource.data.sender_id == request.auth.uid &&
+        exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversation_id)) &&
+        get(/databases/$(database)/documents/conversations/$(request.resource.data.conversation_id)).data.participants.hasAny([request.auth.uid]);
+      allow update: if isAuthenticated() && 
+        get(/databases/$(database)/documents/conversations/$(resource.data.conversation_id)).data.participants.hasAny([request.auth.uid]) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && resource.data.participants.hasAny([request.auth.uid]);
+      allow create: if isAuthenticated() && request.resource.data.participants.hasAny([request.auth.uid]);
+      allow update: if isAuthenticated() && resource.data.participants.hasAny([request.auth.uid]) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasAny(['last_message', 'last_message_at']);
+    }
+
+    match /groups/{groupId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.creator_id == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.creator_id == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.creator_id == request.auth.uid || isAdmin());
+    }
+
+    match /stories/{storyId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /notifications/{notificationId} {
       allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
       allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
-      allow create, delete: if false; // Only backend can create/delete
+      allow create: if isAuthenticated(); // Allow users to trigger notifications for others (e.g. on like)
     }
 
     match /comments/{commentId} {
       allow read: if true;
-      
-      allow create: if isAuthenticated() 
-                    && request.resource.data.user_id == request.auth.uid
-                    && request.resource.data.keys().hasAll(['post_id', 'user_id', 'content', 'created_at', 'updated_at'])
-                    && request.resource.data.content is string
-                    && request.resource.data.content.size() > 0
-                    && request.resource.data.content.size() <= 2000;
-                    
-      allow update: if isAuthenticated() 
-                    && (
-                      // Owner can edit content
-                      (isDocOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'is_edited', 'updated_at', 'is_deleted', 'media_url', 'is_hidden']))
-                      ||
-                      // Anyone can update likes_count and replies_count
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count', 'replies_count']))
-                      ||
-                      // Admin can pin (for now, let anyone pin for testing, or restrict to post owner if we had post data)
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_pinned']))
-                    );
-                    
-      allow delete: if false; // Soft delete via update
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        (isDocOwner() || isAdmin())
+        ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count', 'replies_count']))
+      );
+      allow delete: if isDocOwner() || isAdmin();
     }
 
     match /comment_likes/{likeId} {
@@ -78,30 +117,12 @@ service cloud.firestore {
     }
 
     match /comment_reports/{reportId} {
-      allow read: if false; // Only admins
       allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow read: if isAdmin();
     }
 
-    match /posts/{postId} {
+    match /_connection_test_/{docId} {
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        (isDocOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'image_url', 'video_url', 'created_at']))
-        ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count', 'comments_count', 'shares_count']))
-      );
-      allow delete: if isDocOwner();
-    }
-
-    match /stories/{storyId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
-      allow delete: if isDocOwner();
-    }
-
-    match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
-      allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
     }
   }
 }

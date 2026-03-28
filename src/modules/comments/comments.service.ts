@@ -1,6 +1,5 @@
-import { db } from '../../config/firebase-admin';
+import { supabaseAdmin } from '../../lib/supabase-admin';
 import { Filter } from 'bad-words';
-import { FieldValue } from 'firebase-admin/firestore';
 
 const filter = new Filter();
 // Add custom Arabic bad words if needed
@@ -16,7 +15,6 @@ export class CommentsService {
     media_url?: string;
   }) {
     const isAbusive = filter.isProfane(data.content);
-    const mentions = data.content.match(/@[\w\u0600-\u06FF]+/g) || [];
     
     const commentData = {
       post_id: data.post_id,
@@ -30,64 +28,44 @@ export class CommentsService {
       is_deleted: false,
       is_pinned: false,
       is_hidden: isAbusive,
-      created_at: FieldValue.serverTimestamp(),
-      updated_at: FieldValue.serverTimestamp(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
-    const commentRef = await db.collection('comments').add(commentData);
+    const { data: comment, error } = await supabaseAdmin.from('comments').insert(commentData).select().single();
+    if (error) throw error;
 
     // If it's a reply, increment parent's replies_count
     if (data.parent_id) {
-      await db.collection('comments').doc(data.parent_id).update({
-        replies_count: FieldValue.increment(1)
-      });
+      await supabaseAdmin.rpc('increment_replies_count', { comment_id: data.parent_id });
     }
 
-    // Fetch user details for the response (mocking user details fetch for now, assuming users collection exists)
-    let user = { id: data.user_id, name: 'User', avatar_url: 'https://ui-avatars.com/api/?name=User' };
-    try {
-      const userDoc = await db.collection('users').doc(data.user_id).get();
-      if (userDoc.exists) {
-        user = { id: userDoc.id, ...userDoc.data() } as any;
-      }
-    } catch (e) {}
+    // Fetch user details
+    const { data: user } = await supabaseAdmin.from('users').select('*').eq('id', data.user_id).single();
 
-    return { id: commentRef.id, ...commentData, user, created_at: new Date().toISOString() };
+    return { ...comment, user: user || { id: data.user_id, name: 'User', avatar_url: 'https://ui-avatars.com/api/?name=User' } };
   }
 
   // 2. Get Comments for a Post (Pagination, Nested, Sorting)
   static async getCommentsByPost(postId: string, sortBy: 'top' | 'newest' = 'top', page = 1, limit = 20) {
-    const query = db.collection('comments')
-      .where('post_id', '==', postId)
-      .where('parent_id', '==', null);
-
-    const snapshot = await query.get();
+    let query = supabaseAdmin.from('comments').select('*, user:users(*)').eq('post_id', postId).is('parent_id', null);
     
-    let comments = await Promise.all(snapshot.docs.map(async (doc) => {
-      const data = doc.data();
-      let user = { id: data.user_id, name: 'User', avatar_url: 'https://ui-avatars.com/api/?name=User' };
-      try {
-        const userDoc = await db.collection('users').doc(data.user_id).get();
-        if (userDoc.exists) user = { id: userDoc.id, ...userDoc.data() } as any;
-      } catch (e) {}
-      
-      return {
-        id: doc.id,
-        ...data,
-        created_at: data.created_at?.toDate ? data.created_at.toDate().toISOString() : (data.created_at || new Date().toISOString()),
-        user
-      };
-    }));
-
-    // Sort in memory
     if (sortBy === 'top') {
-      comments.sort((a: any, b: any) => (b.likes_count || 0) - (a.likes_count || 0));
+      query = query.order('likes_count', { ascending: false });
     } else {
-      comments.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      query = query.order('created_at', { ascending: false });
     }
 
+    const { data: comments, error } = await query;
+    if (error) throw error;
+
+    let processedComments = (comments || []).map(c => ({
+      ...c,
+      user: c.user || { id: c.user_id, name: 'User', avatar_url: 'https://ui-avatars.com/api/?name=User' }
+    }));
+
     // Sort pinned to top
-    comments.sort((a: any, b: any) => {
+    processedComments.sort((a: any, b: any) => {
       if (a.is_pinned && !b.is_pinned) return -1;
       if (!a.is_pinned && b.is_pinned) return 1;
       return 0;
@@ -95,109 +73,107 @@ export class CommentsService {
 
     // Apply pagination in memory
     const startIndex = (page - 1) * limit;
-    return comments.slice(startIndex, startIndex + limit);
+    return processedComments.slice(startIndex, startIndex + limit);
   }
 
   // 3. Get Replies for a Comment
   static async getReplies(parentId: string, page = 1, limit = 10) {
-    const snapshot = await db.collection('comments')
-      .where('parent_id', '==', parentId)
-      .get();
+    const { data: replies, error } = await supabaseAdmin
+      .from('comments')
+      .select('*, user:users(*)')
+      .eq('parent_id', parentId)
+      .order('created_at', { ascending: true });
+    
+    if (error) throw error;
 
-    let replies = await Promise.all(snapshot.docs.map(async (doc) => {
-      const data = doc.data();
-      let user = { id: data.user_id, name: 'User', avatar_url: 'https://ui-avatars.com/api/?name=User' };
-      try {
-        const userDoc = await db.collection('users').doc(data.user_id).get();
-        if (userDoc.exists) user = { id: userDoc.id, ...userDoc.data() } as any;
-      } catch (e) {}
-      
-      return {
-        id: doc.id,
-        ...data,
-        created_at: data.created_at?.toDate ? data.created_at.toDate().toISOString() : (data.created_at || new Date().toISOString()),
-        user
-      };
+    let processedReplies = (replies || []).map(r => ({
+      ...r,
+      user: r.user || { id: r.user_id, name: 'User', avatar_url: 'https://ui-avatars.com/api/?name=User' }
     }));
-
-    replies.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     
     const startIndex = (page - 1) * limit;
-    return replies.slice(startIndex, startIndex + limit);
+    return processedReplies.slice(startIndex, startIndex + limit);
   }
 
   // 4. Edit Comment
   static async editComment(id: string, userId: string, newContent: string) {
-    const commentRef = db.collection('comments').doc(id);
-    const doc = await commentRef.get();
-    
-    if (!doc.exists || doc.data()?.user_id !== userId) {
+    const { data: comment, error: fetchError } = await supabaseAdmin.from('comments').select('*').eq('id', id).single();
+    if (fetchError || comment.user_id !== userId) {
       throw new Error('Unauthorized');
     }
 
     const isAbusive = filter.isProfane(newContent);
 
-    await commentRef.update({ 
+    const { error: updateError } = await supabaseAdmin.from('comments').update({ 
       content: newContent, 
       is_edited: true,
       is_hidden: isAbusive,
-      updated_at: FieldValue.serverTimestamp()
-    });
+      updated_at: new Date().toISOString()
+    }).eq('id', id);
+    
+    if (updateError) throw updateError;
 
     return { id, content: newContent, is_edited: true, is_hidden: isAbusive };
   }
 
   // 5. Delete Comment (Soft Delete)
   static async deleteComment(id: string, userId: string) {
-    const commentRef = db.collection('comments').doc(id);
-    const doc = await commentRef.get();
-    
-    if (!doc.exists || doc.data()?.user_id !== userId) {
+    const { data: comment, error: fetchError } = await supabaseAdmin.from('comments').select('*').eq('id', id).single();
+    if (fetchError || comment.user_id !== userId) {
       throw new Error('Unauthorized');
     }
 
-    await commentRef.update({ 
+    const { error: updateError } = await supabaseAdmin.from('comments').update({ 
       is_deleted: true, 
       content: 'تم حذف هذا التعليق',
       media_url: null,
-      updated_at: FieldValue.serverTimestamp()
-    });
+      updated_at: new Date().toISOString()
+    }).eq('id', id);
+    
+    if (updateError) throw updateError;
 
     return { success: true };
   }
 
   // 6. Like Comment
   static async likeComment(commentId: string, userId: string) {
-    const likeRef = db.collection('comment_likes').doc(`${commentId}_${userId}`);
-    const likeDoc = await likeRef.get();
+    const { data: like, error: fetchError } = await supabaseAdmin
+      .from('comment_likes')
+      .select('*')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .single();
 
-    if (!likeDoc.exists) {
-      const batch = db.batch();
-      batch.set(likeRef, {
+    if (!like) {
+      const { error: insertError } = await supabaseAdmin.from('comment_likes').insert({
         comment_id: commentId,
         user_id: userId,
-        created_at: FieldValue.serverTimestamp()
+        created_at: new Date().toISOString()
       });
-      batch.update(db.collection('comments').doc(commentId), {
-        likes_count: FieldValue.increment(1)
-      });
-      await batch.commit();
+      if (insertError) throw insertError;
+      
+      await supabaseAdmin.rpc('increment_likes_count', { comment_id: commentId });
     }
     return { success: true };
   }
 
   // 7. Unlike Comment
   static async unlikeComment(commentId: string, userId: string) {
-    const likeRef = db.collection('comment_likes').doc(`${commentId}_${userId}`);
-    const likeDoc = await likeRef.get();
+    const { data: like, error: fetchError } = await supabaseAdmin
+      .from('comment_likes')
+      .select('*')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .single();
 
-    if (likeDoc.exists) {
-      const batch = db.batch();
-      batch.delete(likeRef);
-      batch.update(db.collection('comments').doc(commentId), {
-        likes_count: FieldValue.increment(-1)
-      });
-      await batch.commit();
+    if (like) {
+      const { error: deleteError } = await supabaseAdmin
+        .from('comment_likes')
+        .delete()
+        .eq('id', like.id);
+      if (deleteError) throw deleteError;
+      
+      await supabaseAdmin.rpc('decrement_likes_count', { comment_id: commentId });
     }
     return { success: true };
   }
@@ -205,31 +181,25 @@ export class CommentsService {
   // 8. Pin Comment
   static async pinComment(id: string, postId: string, userId: string) {
     // Unpin all other comments for this post
-    const pinnedSnapshot = await db.collection('comments')
-      .where('post_id', '==', postId)
-      .where('is_pinned', '==', true)
-      .get();
-
-    const batch = db.batch();
-    pinnedSnapshot.docs.forEach(doc => {
-      batch.update(doc.ref, { is_pinned: false });
-    });
+    await supabaseAdmin.from('comments').update({ is_pinned: false }).eq('post_id', postId);
 
     // Pin the selected comment
-    batch.update(db.collection('comments').doc(id), { is_pinned: true });
-    await batch.commit();
+    const { error } = await supabaseAdmin.from('comments').update({ is_pinned: true }).eq('id', id);
+    if (error) throw error;
 
     return { id, is_pinned: true };
   }
 
   // 9. Report Comment
   static async reportComment(id: string, userId: string, reason: string) {
-    await db.collection('comment_reports').add({
+    const { error } = await supabaseAdmin.from('comment_reports').insert({
       comment_id: id,
       user_id: userId,
       reason,
-      created_at: FieldValue.serverTimestamp()
+      created_at: new Date().toISOString()
     });
+    if (error) throw error;
+    
     return { success: true, message: 'Report submitted successfully' };
   }
 }

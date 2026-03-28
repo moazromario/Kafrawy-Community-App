@@ -60,14 +60,80 @@
       "properties": {
         "user_id": { "type": "string" },
         "content": { "type": "string" },
-        "image_url": { "type": "string" },
-        "video_url": { "type": "string" },
+        "media_urls": { "type": "array", "items": { "type": "string" } },
         "likes_count": { "type": "number" },
         "comments_count": { "type": "number" },
         "shares_count": { "type": "number" },
+        "visibility": { "type": "string", "enum": ["public", "private", "group"] },
+        "group_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["user_id", "content"]
+    },
+    "Like": {
+      "title": "Like",
+      "description": "A like on a post or comment",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "entity_id": { "type": "string" },
+        "entity_type": { "type": "string", "enum": ["post", "comment"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "entity_id", "entity_type"]
+    },
+    "Follow": {
+      "title": "Follow",
+      "description": "A follow relationship",
+      "type": "object",
+      "properties": {
+        "follower_id": { "type": "string" },
+        "following_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["follower_id", "following_id"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A direct or group message",
+      "type": "object",
+      "properties": {
+        "conversation_id": { "type": "string" },
+        "sender_id": { "type": "string" },
+        "content": { "type": "string" },
+        "media_url": { "type": "string" },
+        "is_read": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["conversation_id", "sender_id", "content"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "A 1-1 or group conversation",
+      "type": "object",
+      "properties": {
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "last_message": { "type": "string" },
+        "last_message_at": { "type": "string", "format": "date-time" },
+        "is_group": { "type": "boolean" },
+        "group_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participants"]
+    },
+    "Group": {
+      "title": "Group",
+      "description": "A community group",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "avatar_url": { "type": "string" },
+        "privacy": { "type": "string", "enum": ["public", "private"] },
+        "creator_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "creator_id"]
     },
     "Story": {
       "title": "Story",
@@ -75,11 +141,12 @@
       "type": "object",
       "properties": {
         "user_id": { "type": "string" },
-        "image_url": { "type": "string" },
-        "video_url": { "type": "string" },
+        "media_url": { "type": "string" },
+        "type": { "type": "string", "enum": ["image", "video"] },
+        "expires_at": { "type": "string", "format": "date-time" },
         "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["user_id"]
+      "required": ["user_id", "media_url", "expires_at"]
     },
     "Notification": {
       "title": "Notification",
@@ -87,11 +154,14 @@
       "type": "object",
       "properties": {
         "user_id": { "type": "string" },
+        "type": { "type": "string", "enum": ["like", "comment", "follow", "message"] },
+        "actor_id": { "type": "string" },
+        "entity_id": { "type": "string" },
         "content": { "type": "string" },
         "is_read": { "type": "boolean" },
         "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["user_id", "content"]
+      "required": ["user_id", "type", "actor_id"]
     }
   },
   "firestore": {
@@ -103,13 +173,25 @@
       "schema": { "$ref": "#/entities/Comment" },
       "description": "Comments"
     },
-    "/comment_likes/{likeId}": {
-      "schema": { "$ref": "#/entities/CommentLike" },
-      "description": "Comment likes"
+    "/likes/{likeId}": {
+      "schema": { "$ref": "#/entities/Like" },
+      "description": "Likes on posts and comments"
     },
-    "/comment_reports/{reportId}": {
-      "schema": { "$ref": "#/entities/CommentReport" },
-      "description": "Comment reports"
+    "/follows/{followId}": {
+      "schema": { "$ref": "#/entities/Follow" },
+      "description": "Follow relationships"
+    },
+    "/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Direct and group messages"
+    },
+    "/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "Chat conversations"
+    },
+    "/groups/{groupId}": {
+      "schema": { "$ref": "#/entities/Group" },
+      "description": "Community groups"
     },
     "/posts/{postId}": {
       "schema": { "$ref": "#/entities/Post" },
@@ -122,6 +204,14 @@
     "/notifications/{notificationId}": {
       "schema": { "$ref": "#/entities/Notification" },
       "description": "User notifications"
+    },
+    "/comment_likes/{likeId}": {
+      "schema": { "$ref": "#/entities/CommentLike" },
+      "description": "Likes on comments"
+    },
+    "/comment_reports/{reportId}": {
+      "schema": { "$ref": "#/entities/CommentReport" },
+      "description": "Reports on comments"
     }
   }
 }

@@ -1,11 +1,12 @@
 // src/server.ts
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import app from './app';
-import { db } from './config/firebase-admin';
+import { supabaseAdmin } from './lib/supabase-admin';
 
 async function startServer() {
   const httpServer = createServer(app);
@@ -49,8 +50,9 @@ async function startServer() {
           status: 'searching',
           created_at: new Date()
         };
-        const tripRef = await db.collection('trips').add(tripData);
-        requestData.dbId = tripRef.id;
+        const { data: dbData, error } = await supabaseAdmin.from('trips').insert(tripData).select().single();
+        if (error) throw error;
+        requestData.dbId = dbData.id;
       } catch (err) {
         console.error('Error saving trip to DB:', err);
       }
@@ -80,10 +82,10 @@ async function startServer() {
 
         // Update DB
         if (request.dbId) {
-          await db.collection('trips').doc(request.dbId).update({
+        await supabaseAdmin.from('trips').update({
             driver_id: socket.id,
             status: 'accepted'
-          });
+          }).eq('id', request.dbId);
         }
 
         console.log(`Ride ${requestId} accepted by driver ${socket.id}`);
@@ -112,11 +114,11 @@ async function startServer() {
       if (request) {
         request.status = 'completed';
         if (request.dbId) {
-          await db.collection('trips').doc(request.dbId).update({
+        await supabaseAdmin.from('trips').update({
             status: 'completed',
             price: fare,
             completed_at: new Date()
-          });
+          }).eq('id', request.dbId);
         }
         io.to(request.riderId).emit('ride_completed', { fare });
         activeRequests.delete(requestId);

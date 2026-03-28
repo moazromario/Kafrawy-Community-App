@@ -1,9 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, where, onSnapshot, orderBy, getDoc, doc } from 'firebase/firestore';
-// import { Filter } from 'bad-words';
-// const filter = new Filter();
-// filter.addWords('كلمة_سيئة', 'شتيمة');
+import { supabase } from '../lib/supabase';
+import { handleSupabaseError, OperationType } from '../lib/utils';
 
 import { 
   Heart, 
@@ -546,56 +544,34 @@ export default function CommentsSection({ postId, currentUser }: CommentsSection
   useEffect(() => {
     setIsLoading(true);
     
-    let unsubscribe: () => void;
-    
-    const init = async () => {
-      const { db } = await import('../firebase');
-      // Realtime Subscription with Firestore
-      const commentsRef = collection(db, 'comments');
-      const q = query(commentsRef, where('post_id', '==', postId), where('parent_id', '==', null));
+    const fetchComments = async () => {
+      const { data, error } = await supabase
+        .from('comments')
+        .select('*, user:users(*)')
+        .eq('post_id', postId)
+        .is('parent_id', null)
+        .order('created_at', { ascending: false });
       
-      unsubscribe = onSnapshot(q, async (snapshot) => {
-        const newComments: CommentType[] = [];
-        const userCache: Record<string, any> = {};
-        
-        for (const docSnapshot of snapshot.docs) {
-          const data = docSnapshot.data();
-          let user = userCache[data.user_id];
-          
-          if (!user) {
-            try {
-              const userDoc = await getDoc(doc(db, 'users', data.user_id));
-              if (userDoc.exists()) {
-                user = { id: userDoc.id, ...userDoc.data() };
-                userCache[data.user_id] = user;
-              } else {
-                user = { id: data.user_id, name: 'User', avatar_url: 'https://ui-avatars.com/api/?name=User' };
-              }
-            } catch (e) {
-              user = { id: data.user_id, name: 'User', avatar_url: 'https://ui-avatars.com/api/?name=User' };
-            }
-          }
-          
-          newComments.push({
-            id: docSnapshot.id,
-            ...data,
-            created_at: data.created_at?.toDate ? data.created_at.toDate().toISOString() : (data.created_at || new Date().toISOString()),
-            user
-          } as CommentType);
-        }
-        
-        setComments(newComments);
+      if (error) {
+        console.error("Error fetching comments:", error);
         setIsLoading(false);
-      }, (error) => {
-        console.error("Error in comments snapshot:", error);
-        setIsLoading(false);
-      });
+        return;
+      }
+      setComments(data as CommentType[]);
+      setIsLoading(false);
     };
     
-    init();
-
+    fetchComments();
+    
+    const channel = supabase
+      .channel('comments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter: `post_id=eq.${postId}` }, () => {
+        fetchComments();
+      })
+      .subscribe();
+      
     return () => {
-      if (unsubscribe) unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [postId]);
 
@@ -613,14 +589,11 @@ export default function CommentsSection({ postId, currentUser }: CommentsSection
 
   // Handlers
   const handleAddComment = async (content: string) => {
-    const { auth, db } = await import('../firebase');
-    if (!auth.currentUser) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     
     try {
-      const { addDoc, serverTimestamp } = await import('firebase/firestore');
-      const commentsRef = collection(db, 'comments');
-      
-      await addDoc(commentsRef, {
+      const { error: insertError } = await supabase.from('comments').insert({
         post_id: postId,
         user_id: currentUser.id,
         parent_id: null,
@@ -631,23 +604,21 @@ export default function CommentsSection({ postId, currentUser }: CommentsSection
         is_deleted: false,
         is_pinned: false,
         is_hidden: false, // filter.isProfane(content),
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
+      if (insertError) throw insertError;
     } catch (error) {
-      console.error("Error adding comment:", error);
+      handleSupabaseError(error, OperationType.CREATE, 'comments');
     }
   };
 
   const handleReplySubmit = async (parentId: string, content: string) => {
-    const { auth, db } = await import('../firebase');
-    if (!auth.currentUser) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     
     try {
-      const { addDoc, serverTimestamp, updateDoc, increment } = await import('firebase/firestore');
-      const commentsRef = collection(db, 'comments');
-      
-      await addDoc(commentsRef, {
+      const { error: insertError } = await supabase.from('comments').insert({
         post_id: postId,
         user_id: currentUser.id,
         parent_id: parentId,
@@ -658,161 +629,140 @@ export default function CommentsSection({ postId, currentUser }: CommentsSection
         is_deleted: false,
         is_pinned: false,
         is_hidden: false, // filter.isProfane(content),
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
+      if (insertError) throw insertError;
       
       // Update parent replies count
-      const parentRef = doc(db, 'comments', parentId);
-      await updateDoc(parentRef, {
-        replies_count: increment(1)
-      });
+      const { data: parentComment } = await supabase.from('comments').select('replies_count').eq('id', parentId).single();
+      if (parentComment) {
+        await supabase.from('comments').update({
+          replies_count: parentComment.replies_count + 1
+        }).eq('id', parentId);
+      }
     } catch (error) {
-      console.error("Error adding reply:", error);
+      handleSupabaseError(error, OperationType.CREATE, 'comments');
     }
   };
 
   const handleEdit = async (id: string, newContent: string) => {
-    const { auth, db } = await import('../firebase');
-    if (!auth.currentUser) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     try {
-      const { updateDoc, serverTimestamp } = await import('firebase/firestore');
-      const commentRef = doc(db, 'comments', id);
-      await updateDoc(commentRef, {
+      await supabase.from('comments').update({
         content: newContent,
         is_edited: true,
         is_hidden: false, // filter.isProfane(newContent),
-        updated_at: serverTimestamp()
-      });
+        updated_at: new Date().toISOString()
+      }).eq('id', id);
     } catch (error) {
-      console.error("Error editing comment:", error);
+      handleSupabaseError(error, OperationType.UPDATE, 'comments');
     }
   };
 
   const handleDelete = async (id: string) => {
-    const { auth, db } = await import('../firebase');
-    if (!auth.currentUser) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     try {
-      const { updateDoc, serverTimestamp } = await import('firebase/firestore');
-      const commentRef = doc(db, 'comments', id);
-      await updateDoc(commentRef, {
+      await supabase.from('comments').update({
         is_deleted: true,
         content: 'تم حذف هذا التعليق',
-        updated_at: serverTimestamp()
-      });
+        updated_at: new Date().toISOString()
+      }).eq('id', id);
     } catch (error) {
-      console.error("Error deleting comment:", error);
+      handleSupabaseError(error, OperationType.UPDATE, 'comments');
     }
   };
 
   const handleLike = async (id: string, isLiked: boolean) => {
-    const { auth, db } = await import('../firebase');
-    if (!auth.currentUser) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     try {
-      const { setDoc, deleteDoc, updateDoc, increment, serverTimestamp } = await import('firebase/firestore');
-      const likeRef = doc(db, 'comment_likes', `${id}_${currentUser.id}`);
-      const commentRef = doc(db, 'comments', id);
-      
       if (isLiked) {
-        await setDoc(likeRef, {
+        await supabase.from('comment_likes').insert({
           comment_id: id,
           user_id: currentUser.id,
-          created_at: serverTimestamp()
+          created_at: new Date().toISOString()
         });
-        await updateDoc(commentRef, { likes_count: increment(1) });
+        const { data: comment } = await supabase.from('comments').select('likes_count').eq('id', id).single();
+        if (comment) {
+          await supabase.from('comments').update({ likes_count: comment.likes_count + 1 }).eq('id', id);
+        }
       } else {
-        await deleteDoc(likeRef);
-        await updateDoc(commentRef, { likes_count: increment(-1) });
+        await supabase.from('comment_likes').delete().eq('comment_id', id).eq('user_id', currentUser.id);
+        const { data: comment } = await supabase.from('comments').select('likes_count').eq('id', id).single();
+        if (comment) {
+          await supabase.from('comments').update({ likes_count: comment.likes_count - 1 }).eq('id', id);
+        }
       }
     } catch (error) {
-      console.error("Error toggling like:", error);
+      handleSupabaseError(error, OperationType.WRITE, 'comment_likes');
     }
   };
 
   const handlePin = async (id: string) => {
-    const { auth, db } = await import('../firebase');
-    if (!auth.currentUser) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     try {
-      const { updateDoc, getDocs, query, where, collection } = await import('firebase/firestore');
-      
       // Unpin currently pinned comment if any
-      const commentsRef = collection(db, 'comments');
-      const q = query(commentsRef, where('post_id', '==', postId), where('is_pinned', '==', true));
-      const snapshot = await getDocs(q);
+      const { data: pinnedComments, error: fetchError } = await supabase
+        .from('comments')
+        .select('id')
+        .eq('post_id', postId)
+        .eq('is_pinned', true);
       
-      for (const d of snapshot.docs) {
-        if (d.id !== id) {
-          await updateDoc(doc(db, 'comments', d.id), { is_pinned: false });
+      if (fetchError) throw fetchError;
+      
+      if (pinnedComments) {
+        for (const comment of pinnedComments) {
+          if (comment.id !== id) {
+            await supabase.from('comments').update({ is_pinned: false }).eq('id', comment.id);
+          }
         }
       }
       
       // Toggle pin for this comment
       const commentToPin = comments.find(c => c.id === id);
       if (commentToPin) {
-        await updateDoc(doc(db, 'comments', id), { is_pinned: !commentToPin.is_pinned });
+        await supabase.from('comments').update({ is_pinned: !commentToPin.is_pinned }).eq('id', id);
       }
     } catch (error) {
-      console.error("Error pinning comment:", error);
+      handleSupabaseError(error, OperationType.UPDATE, 'comments');
     }
   };
 
   const handleReport = async (id: string) => {
-    const { auth, db } = await import('../firebase');
-    if (!auth.currentUser) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     try {
-      const { addDoc, serverTimestamp, collection } = await import('firebase/firestore');
-      await addDoc(collection(db, 'comment_reports'), {
+      await supabase.from('comment_reports').insert({
         comment_id: id,
         user_id: currentUser.id,
         reason: 'Inappropriate content',
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
       alert('تم الإبلاغ عن التعليق بنجاح. سيقوم فريق الإشراف بمراجعته.');
     } catch (error) {
-      console.error("Error reporting comment:", error);
+      handleSupabaseError(error, OperationType.CREATE, 'comment_reports');
     }
   };
 
   const fetchReplies = async (parentId: string): Promise<CommentType[]> => {
-    const { db } = await import('../firebase');
     try {
-      const { getDocs } = await import('firebase/firestore');
-      const repliesRef = collection(db, 'comments');
-      const q = query(repliesRef, where('parent_id', '==', parentId));
-      const snapshot = await getDocs(q);
+      const { data: repliesData, error } = await supabase
+        .from('comments')
+        .select('*, user:users(*)')
+        .eq('parent_id', parentId);
       
-      const replies: CommentType[] = [];
-      const userCache: Record<string, any> = {};
+      if (error) throw error;
       
-      for (const docSnapshot of snapshot.docs) {
-        const data = docSnapshot.data();
-        let user = userCache[data.user_id];
-        
-        if (!user) {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', data.user_id));
-            if (userDoc.exists()) {
-              user = { id: userDoc.id, ...userDoc.data() };
-              userCache[data.user_id] = user;
-            } else {
-              user = { id: data.user_id, name: 'User', avatar_url: 'https://ui-avatars.com/api/?name=User' };
-            }
-          } catch (e) {
-            user = { id: data.user_id, name: 'User', avatar_url: 'https://ui-avatars.com/api/?name=User' };
-          }
-        }
-        
-        replies.push({
-          id: docSnapshot.id,
-          ...data,
-          created_at: data.created_at?.toDate ? data.created_at.toDate().toISOString() : (data.created_at || new Date().toISOString()),
-          user
-        } as CommentType);
-      }
-      
-      return replies.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      return (repliesData || []).map(reply => ({
+        ...reply,
+        user: reply.user || { id: reply.user_id, name: 'User', avatar_url: 'https://ui-avatars.com/api/?name=User' }
+      })) as CommentType[];
     } catch (error) {
-      console.error("Error fetching replies:", error);
+      handleSupabaseError(error, OperationType.LIST, 'comments');
       return [];
     }
   };
