@@ -9,7 +9,8 @@ import {
   Sparkles, 
   ArrowRight, 
   PlayCircle,
-  Search
+  Search,
+  Target
 } from 'lucide-react';
 import { MORNING_AZKAR, EVENING_AZKAR, SLEEP_AZKAR, POST_PRAYER_AZKAR } from './data/azkar';
 import { ARTICLES } from './data/articles';
@@ -642,6 +643,92 @@ const ArticleDetailScreen = () => {
   );
 };
 
+const SebhaScreen = () => {
+  const navigate = useNavigate();
+  const [count, setCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentZikr, setCurrentZikr] = useState('سُبْحَانَ اللَّهِ');
+
+  const azkarList = [
+    'سُبْحَانَ اللَّهِ',
+    'الْحَمْدُ لِلَّهِ',
+    'اللَّهُ أَكْبَرُ',
+    'لا إِلَهَ إِلا اللَّهُ',
+    'أَسْتَغْفِرُ اللَّهَ',
+    'لا حَوْلَ وَلا قُوَّةَ إِلا بِاللَّهِ',
+    'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ'
+  ];
+
+  const handlePress = () => {
+    setCount(c => c + 1);
+    setTotalCount(c => c + 1);
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+  };
+
+  const handleReset = () => {
+    setCount(0);
+    if (navigator.vibrate) {
+      navigator.vibrate([50, 50, 50]);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[var(--background)] pb-24 flex flex-col">
+      <header className="sticky top-0 z-50 glass border-b border-[var(--border)] px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="p-2 rounded-xl bg-[var(--background)] hover:bg-[var(--border)]">
+            <ArrowRight className="w-5 h-5" />
+          </button>
+          <h1 className="text-xl font-black text-emerald-600">المسبحة الإلكترونية</h1>
+        </div>
+        <button onClick={handleReset} className="text-xs font-bold text-[var(--muted)] hover:text-emerald-600 px-3 py-1 bg-[var(--card)] rounded-full border border-[var(--border)]">
+          تصفير
+        </button>
+      </header>
+
+      <div className="flex-1 flex flex-col items-center justify-center p-5 gap-8">
+        {/* Zikr Selector */}
+        <div className="w-full max-w-sm overflow-x-auto pb-4 hide-scrollbar">
+          <div className="flex gap-2">
+            {azkarList.map(zikr => (
+              <button
+                key={zikr}
+                onClick={() => { setCurrentZikr(zikr); setCount(0); }}
+                className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-colors ${currentZikr === zikr ? 'bg-emerald-600 text-white' : 'bg-[var(--card)] text-[var(--muted)] border border-[var(--border)]'}`}
+              >
+                {zikr}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Current Zikr Display */}
+        <div className="text-2xl font-black text-center text-[var(--foreground)] h-16 flex items-center justify-center">
+          {currentZikr}
+        </div>
+
+        {/* Main Button */}
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={handlePress}
+          className="w-64 h-64 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-2xl shadow-emerald-500/30 flex flex-col items-center justify-center text-white relative overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-black/10 opacity-0 hover:opacity-100 transition-opacity" />
+          <span className="text-7xl font-black tracking-tighter">{count}</span>
+          <span className="text-sm font-bold opacity-80 mt-2">اضغط للتسبيح</span>
+        </motion.button>
+
+        {/* Total Count */}
+        <div className="text-sm font-bold text-[var(--muted)]">
+          المجموع الكلي: {totalCount}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const IslamicDashboard = () => {
   const navigate = useNavigate();
 
@@ -716,6 +803,17 @@ const IslamicDashboard = () => {
           </div>
           <span className="font-black">مقالات</span>
         </motion.div>
+
+        <motion.div 
+          whileTap={{ scale: 0.95 }}
+          onClick={() => navigate('/islamic/sebha')}
+          className="bg-[var(--card)] p-5 rounded-[32px] border border-[var(--border)] flex flex-col items-center gap-3 soft-shadow cursor-pointer col-span-2"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+            <Target className="w-8 h-8" />
+          </div>
+          <span className="font-black">المسبحة الإلكترونية</span>
+        </motion.div>
       </div>
     </div>
   );
@@ -729,6 +827,7 @@ const IslamicModule = () => {
       <Route path="/hadith" element={<HadithScreen />} />
       <Route path="/azkar" element={<AzkarScreen />} />
       <Route path="/azkar/:categoryId" element={<ZikrDetailScreen />} />
+      <Route path="/sebha" element={<SebhaScreen />} />
       <Route path="/articles" element={<ArticlesScreen />} />
       <Route path="/articles/:articleId" element={<ArticleDetailScreen />} />
     </Routes>
