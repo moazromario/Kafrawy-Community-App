@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { 
@@ -16,16 +16,6 @@ import { MORNING_AZKAR, EVENING_AZKAR, SLEEP_AZKAR, POST_PRAYER_AZKAR } from './
 import { ARTICLES } from './data/articles';
 
 // --- Mock Data ---
-const SURAHS = [
-  { id: 1, name: 'الفاتحة', verses: 7, type: 'مكية' },
-  { id: 2, name: 'البقرة', verses: 286, type: 'مدنية' },
-  { id: 3, name: 'آل عمران', verses: 200, type: 'مدنية' },
-  { id: 18, name: 'الكهف', verses: 110, type: 'مكية' },
-  { id: 36, name: 'يس', verses: 83, type: 'مكية' },
-  { id: 55, name: 'الرحمن', verses: 78, type: 'مدنية' },
-  { id: 67, name: 'الملك', verses: 30, type: 'مكية' },
-];
-
 const AZKAR_CATEGORIES = [
   { id: 'morning', title: 'أذكار الصباح', count: MORNING_AZKAR.length, data: MORNING_AZKAR },
   { id: 'evening', title: 'أذكار المساء', count: EVENING_AZKAR.length, data: EVENING_AZKAR },
@@ -301,6 +291,21 @@ const HADITHS = [
 const QuranScreen = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [surahs, setSurahs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('https://api.alquran.cloud/v1/surah')
+      .then(res => res.json())
+      .then(data => {
+        setSurahs(data.data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
 
   return (
     <div className="min-h-screen bg-[var(--background)] pb-24">
@@ -323,25 +328,147 @@ const QuranScreen = () => {
           />
         </div>
 
-        <div className="space-y-3">
-          {SURAHS.filter(s => s.name.includes(search)).map(surah => (
-            <motion.div 
-              key={surah.id}
-              whileTap={{ scale: 0.98 }}
-              className="bg-[var(--card)] p-4 rounded-2xl border border-[var(--border)] flex items-center justify-between soft-shadow cursor-pointer"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-sm">
-                  {surah.id}
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {surahs.filter(s => s.name.includes(search)).map(surah => (
+              <motion.div 
+                key={surah.number}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => navigate(`/islamic/quran/${surah.number}`)}
+                className="bg-[var(--card)] p-4 rounded-2xl border border-[var(--border)] flex items-center justify-between soft-shadow cursor-pointer"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-sm">
+                    {surah.number}
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg">{surah.name}</h3>
+                    <p className="text-xs text-[var(--muted)] font-bold">{surah.revelationType === 'Meccan' ? 'مكية' : 'مدنية'} • {surah.numberOfAyahs} آية</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-black text-lg">سورة {surah.name}</h3>
-                  <p className="text-xs text-[var(--muted)] font-bold">{surah.type} • {surah.verses} آية</p>
+                <PlayCircle className="w-6 h-6 text-emerald-500" />
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const SurahDetailScreen = () => {
+  const { surahId } = useParams();
+  const navigate = useNavigate();
+  const [surah, setSurah] = useState<any>(null);
+  const [translation, setTranslation] = useState<any>(null);
+  const [audio, setAudio] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [bookmark, setBookmark] = useState<number | null>(null);
+
+  useEffect(() => {
+    const savedBookmark = localStorage.getItem(`quran_bookmark_${surahId}`);
+    if (savedBookmark) setBookmark(parseInt(savedBookmark));
+
+    Promise.all([
+      fetch(`https://api.alquran.cloud/v1/surah/${surahId}/quran-uthmani`).then(res => res.json()),
+      fetch(`https://api.alquran.cloud/v1/surah/${surahId}/en.asad`).then(res => res.json()),
+      fetch(`https://api.alquran.cloud/v1/surah/${surahId}/ar.alafasy`).then(res => res.json())
+    ])
+      .then(([ar, en, au]) => {
+        setSurah(ar.data);
+        setTranslation(en.data);
+        setAudio(au.data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [surahId]);
+
+  const toggleBookmark = (verseNumber: number) => {
+    if (bookmark === verseNumber) {
+      setBookmark(null);
+      localStorage.removeItem(`quran_bookmark_${surahId}`);
+    } else {
+      setBookmark(verseNumber);
+      localStorage.setItem(`quran_bookmark_${surahId}`, verseNumber.toString());
+    }
+  };
+
+  const playAudio = (url: string) => {
+    const audio = new Audio(url);
+    audio.play();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center p-5">
+        <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <h2 className="text-xl font-black text-[var(--foreground)]">جاري تحميل السورة...</h2>
+      </div>
+    );
+  }
+
+  if (!surah) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center p-5">
+        <Book className="w-16 h-16 text-[var(--muted)] mb-4 opacity-20" />
+        <h2 className="text-xl font-black text-[var(--foreground)] mb-2">السورة غير موجودة</h2>
+        <button onClick={() => navigate(-1)} className="text-emerald-600 font-bold">العودة للسابق</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--background)] pb-24">
+      <header className="sticky top-0 z-50 glass border-b border-[var(--border)] px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="p-2 rounded-xl bg-[var(--background)] hover:bg-[var(--border)]">
+            <ArrowRight className="w-5 h-5" />
+          </button>
+          <h1 className="text-xl font-black text-emerald-600">{surah.name}</h1>
+        </div>
+      </header>
+
+      <div className="p-5">
+        <div className="bg-[var(--card)] rounded-[32px] p-6 border border-[var(--border)] soft-shadow text-center">
+          {surah.number !== 1 && surah.number !== 9 && (
+            <div className="text-2xl font-serif text-emerald-600 mb-8 font-bold">
+              بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+            </div>
+          )}
+          
+          {surah.ayahs.map((ayah: any, index: number) => {
+              let text = ayah.text;
+              if (surah.number !== 1 && index === 0) {
+                 text = text.replace(/^بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ\s*/, '');
+                 text = text.replace(/^بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ/, '');
+                 text = text.replace(/^.*?بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ\s*/, '');
+              }
+              const isBookmarked = bookmark === ayah.numberInSurah;
+              return (
+                <div key={ayah.numberInSurah} className={`mb-8 p-4 rounded-2xl ${isBookmarked ? 'bg-emerald-50 border border-emerald-200' : ''}`}>
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex gap-2">
+                      <button onClick={() => playAudio(audio.ayahs[index].audio)} className="p-2 rounded-full bg-emerald-100 text-emerald-600">
+                        <PlayCircle className="w-5 h-5" />
+                      </button>
+                      <button onClick={() => toggleBookmark(ayah.numberInSurah)} className={`p-2 rounded-full ${isBookmarked ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                        <Book className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <span className="text-sm font-black text-emerald-600">{ayah.numberInSurah}</span>
+                  </div>
+                  <p className="text-3xl font-serif text-[var(--foreground)] mb-4" style={{ lineHeight: '2.5' }}>{text}</p>
+                  <p className="text-lg text-[var(--muted)] font-sans">{translation.ayahs[index].text}</p>
                 </div>
-              </div>
-              <PlayCircle className="w-6 h-6 text-emerald-500" />
-            </motion.div>
-          ))}
+              );
+            })}
         </div>
       </div>
     </div>
@@ -824,6 +951,7 @@ const IslamicModule = () => {
     <Routes>
       <Route path="/" element={<IslamicDashboard />} />
       <Route path="/quran" element={<QuranScreen />} />
+      <Route path="/quran/:surahId" element={<SurahDetailScreen />} />
       <Route path="/hadith" element={<HadithScreen />} />
       <Route path="/azkar" element={<AzkarScreen />} />
       <Route path="/azkar/:categoryId" element={<ZikrDetailScreen />} />
